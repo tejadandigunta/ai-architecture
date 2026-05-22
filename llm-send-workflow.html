@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What Happens Inside an LLM When You Hit Send</title>
+  <style>
+    :root {
+      --bg: #070a12;
+      --panel: rgba(13, 19, 34, 0.82);
+      --panel-strong: rgba(17, 26, 46, 0.94);
+      --cyan: #39f5ff;
+      --blue: #6ea8ff;
+      --pink: #ff5cc8;
+      --yellow: #ffe66d;
+      --green: #74f2a6;
+      --text: #f6fbff;
+      --muted: #a9bad3;
+      --line: rgba(115, 194, 255, 0.36);
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 16% 10%, rgba(57, 245, 255, 0.16), transparent 30%),
+        radial-gradient(circle at 84% 18%, rgba(255, 92, 200, 0.14), transparent 32%),
+        linear-gradient(135deg, #05070e 0%, #0b1020 48%, #090b13 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent 84%);
+    }
+
+    .reel {
+      position: relative;
+      width: min(100%, 540px);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 26px 18px 34px;
+    }
+
+    .hero {
+      position: relative;
+      min-height: 28vh;
+      display: grid;
+      align-content: end;
+      padding: 18px 4px 18px;
+    }
+
+    .micro-label {
+      display: inline-flex;
+      align-items: center;
+      width: max-content;
+      gap: 8px;
+      padding: 7px 11px;
+      border: 1px solid rgba(57, 245, 255, 0.36);
+      border-radius: 999px;
+      background: rgba(57, 245, 255, 0.08);
+      color: #b9fbff;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      box-shadow: 0 0 26px rgba(57, 245, 255, 0.13);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 18px var(--green);
+      animation: pulse 1.25s ease-in-out infinite;
+    }
+
+    h1 {
+      margin: 16px 0 12px;
+      max-width: 11ch;
+      font-size: clamp(46px, 12vw, 76px);
+      line-height: 0.88;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 35ch;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.45;
+      font-weight: 600;
+    }
+
+    .timer {
+      position: absolute;
+      right: 0;
+      top: 22px;
+      display: grid;
+      place-items: center;
+      width: 104px;
+      height: 104px;
+      border-radius: 50%;
+      background:
+        conic-gradient(from 0deg, var(--cyan), var(--pink), var(--yellow), var(--cyan));
+      box-shadow: 0 0 50px rgba(57, 245, 255, 0.18);
+      animation: spin 5.5s linear infinite;
+    }
+
+    .timer::before {
+      content: "";
+      position: absolute;
+      inset: 7px;
+      border-radius: inherit;
+      background: #091020;
+    }
+
+    .timer span {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      text-align: center;
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .timer small {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .send-box {
+      position: relative;
+      margin: 8px 0 24px;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .send-row {
+      display: grid;
+      grid-template-columns: 1fr 48px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .prompt {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border-radius: 8px;
+      background: #f8fbff;
+      color: #111827;
+      font-size: 14px;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .prompt span {
+      width: 0;
+      overflow: hidden;
+      border-right: 2px solid #111827;
+      animation: typing 2.8s steps(29, end) infinite alternate;
+    }
+
+    .send-button {
+      height: 48px;
+      border: 0;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #07101f;
+      font-size: 22px;
+      font-weight: 900;
+      box-shadow: 0 12px 30px rgba(57, 245, 255, 0.26);
+    }
+
+    .pipeline {
+      position: relative;
+      display: grid;
+      gap: 16px;
+      padding: 4px 0 0;
+    }
+
+    .pipeline::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 70px;
+      left: 25px;
+      width: 2px;
+      background: linear-gradient(to bottom, transparent, var(--line), var(--line), transparent);
+    }
+
+    .step {
+      position: relative;
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .node {
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 52px;
+      height: 52px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 50%;
+      background: #10182a;
+      box-shadow: 0 0 34px rgba(57, 245, 255, 0.16);
+      font-weight: 900;
+      color: var(--cyan);
+    }
+
+    .card {
+      position: relative;
+      min-height: 154px;
+      padding: 16px 16px 15px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(120deg, rgba(57, 245, 255, 0.1), transparent 42%, rgba(255, 92, 200, 0.08));
+      pointer-events: none;
+    }
+
+    .card h2 {
+      position: relative;
+      z-index: 1;
+      margin: 0 0 10px;
+      font-size: 22px;
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .card p {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.42;
+      font-weight: 600;
+    }
+
+    .visual {
+      position: relative;
+      z-index: 1;
+      margin-top: 14px;
+    }
+
+    .token-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-bottom: 10px;
+    }
+
+    .token,
+    .token-id,
+    .word-chip,
+    .fixed-token,
+    .predicted-token {
+      padding: 7px 9px;
+      border-radius: 8px;
+      background: rgba(57, 245, 255, 0.12);
+      border: 1px solid rgba(57, 245, 255, 0.34);
+      color: #d8fdff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      font-weight: 800;
+      animation: floatIn 2.8s ease-in-out infinite;
+    }
+
+    .token:nth-child(2) { animation-delay: 0.12s; }
+    .token:nth-child(3) { animation-delay: 0.24s; }
+    .token:nth-child(4) { animation-delay: 0.36s; }
+    .token:nth-child(5) { animation-delay: 0.48s; }
+
+    .token-ids {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+    }
+
+    .token-id {
+      display: grid;
+      gap: 4px;
+      animation: none;
+      background: rgba(255, 230, 109, 0.1);
+      border-color: rgba(255, 230, 109, 0.34);
+      color: #fff3a4;
+    }
+
+    .token-id small {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .vector-space {
+      position: relative;
+      height: 142px;
+      border-radius: 8px;
+      background:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 18px 18px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+    }
+
+    .cluster-label {
+      position: absolute;
+      padding: 5px 7px;
+      border-radius: 7px;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .cluster-label.royalty { left: 10px; top: 8px; }
+    .cluster-label.food { right: 10px; bottom: 8px; }
+
+    .cluster-ring {
+      position: absolute;
+      border: 1px dashed currentColor;
+      border-radius: 50%;
+      opacity: 0.35;
+    }
+
+    .ring-royalty {
+      left: 30px;
+      top: 26px;
+      width: 132px;
+      height: 78px;
+      color: var(--cyan);
+    }
+
+    .ring-food {
+      right: 26px;
+      bottom: 18px;
+      width: 132px;
+      height: 76px;
+      color: var(--pink);
+    }
+
+    .point {
+      position: absolute;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 18px currentColor;
+    }
+
+    .point::after {
+      content: attr(data-label);
+      position: absolute;
+      left: 14px;
+      top: -7px;
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .king { left: 21%; top: 34%; color: var(--cyan); }
+    .queen { left: 31%; top: 28%; color: var(--green); }
+    .prince { left: 18%; top: 58%; color: var(--blue); }
+    .crown { left: 38%; top: 51%; color: var(--yellow); }
+    .pizza { left: 68%; top: 50%; color: var(--pink); }
+    .burger { left: 80%; top: 61%; color: var(--yellow); }
+    .pasta { left: 62%; top: 76%; color: var(--green); }
+
+    .vector-db {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .db-group {
+      padding: 8px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .db-group strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .db-group span {
+      display: block;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    .attention-map {
+      display: grid;
+      gap: 10px;
+    }
+
+    .sentence-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .word-chip {
+      animation: none;
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    .word-chip.focus {
+      background: rgba(255, 230, 109, 0.18);
+      border-color: rgba(255, 230, 109, 0.54);
+      color: #fff1a1;
+      box-shadow: 0 0 22px rgba(255, 230, 109, 0.16);
+    }
+
+    .weight-map {
+      display: grid;
+      gap: 6px;
+    }
+
+    .weight-row {
+      display: grid;
+      grid-template-columns: 74px 1fr 44px;
+      gap: 8px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 850;
+    }
+
+    .weight-bar {
+      height: 9px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.09);
+      overflow: hidden;
+    }
+
+    .weight-bar span {
+      display: block;
+      height: 100%;
+      width: var(--w);
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--green));
+      box-shadow: 0 0 16px rgba(57, 245, 255, 0.24);
+      animation: growBar 2.6s ease-in-out infinite;
+    }
+
+    .meaning-pop {
+      padding: 11px;
+      border-radius: 8px;
+      background: rgba(116, 242, 166, 0.11);
+      border: 1px solid rgba(116, 242, 166, 0.34);
+      box-shadow: 0 0 30px rgba(116, 242, 166, 0.11);
+      color: #dcffe9;
+      font-size: 13px;
+      font-weight: 900;
+      animation: popMeaning 2.6s ease-in-out infinite;
+    }
+
+    .meaning-pop span {
+      color: var(--yellow);
+    }
+
+    .output-card {
+      margin-top: 4px;
+      padding: 18px;
+      border-radius: 8px;
+      border: 1px solid rgba(116, 242, 166, 0.32);
+      background: var(--panel-strong);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48), 0 0 42px rgba(116, 242, 166, 0.1);
+    }
+
+    .output-card h2 {
+      margin: 0 0 10px;
+      font-size: 27px;
+      line-height: 1;
+    }
+
+    .generation {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 14px 0;
+    }
+
+    .fixed-token,
+    .predicted-token {
+      animation: none;
+    }
+
+    .fixed-token {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.14);
+      color: var(--text);
+    }
+
+    .prediction-slot {
+      position: relative;
+      width: 88px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(116, 242, 166, 0.1);
+      border: 1px solid rgba(116, 242, 166, 0.36);
+      box-shadow: 0 0 26px rgba(116, 242, 166, 0.13);
+      overflow: hidden;
+    }
+
+    .predicted-token {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      color: #dcffe9;
+      opacity: 0;
+      transform: translateY(16px);
+      animation: cyclePrediction 6s ease-in-out infinite;
+    }
+
+    .predicted-token:nth-child(2) { animation-delay: 1.5s; }
+    .predicted-token:nth-child(3) { animation-delay: 3s; }
+    .predicted-token:nth-child(4) { animation-delay: 4.5s; }
+
+    .candidate-row {
+      display: grid;
+      gap: 5px;
+      margin: 10px 0 14px;
+    }
+
+    .candidate {
+      display: grid;
+      grid-template-columns: 72px 1fr 38px;
+      gap: 7px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 850;
+    }
+
+    .candidate i {
+      display: block;
+      height: 7px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.09);
+      overflow: hidden;
+    }
+
+    .candidate i::before {
+      content: "";
+      display: block;
+      height: 100%;
+      width: var(--w);
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+    }
+
+    .next-token {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(116, 242, 166, 0.13);
+      border: 1px solid rgba(116, 242, 166, 0.38);
+      color: #dcffe9;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      font-weight: 900;
+      opacity: 0;
+      transform: translateY(8px);
+      animation: revealToken 4s ease-in-out infinite;
+    }
+
+    .next-token:nth-child(2) { animation-delay: 0.45s; }
+    .next-token:nth-child(3) { animation-delay: 0.9s; }
+    .next-token:nth-child(4) { animation-delay: 1.35s; }
+    .next-token:nth-child(5) { animation-delay: 1.8s; }
+
+    .output-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+      font-weight: 650;
+    }
+
+    .cliffhanger {
+      margin-top: 18px;
+      padding: 18px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(255, 92, 200, 0.22), rgba(57, 245, 255, 0.12));
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: var(--shadow);
+    }
+
+    .cliffhanger strong {
+      display: block;
+      color: var(--yellow);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+
+    .cliffhanger span {
+      display: block;
+      font-size: 23px;
+      line-height: 1.08;
+      font-weight: 950;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(0.8); opacity: 0.65; }
+      50% { transform: scale(1.25); opacity: 1; }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes typing {
+      from { width: 0; }
+      to { width: 29ch; }
+    }
+
+    @keyframes floatIn {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+
+    @keyframes attention {
+      0%, 100% { transform: scale(1); filter: brightness(0.9); }
+      50% { transform: scale(1.08); filter: brightness(1.7); }
+    }
+
+    @keyframes growBar {
+      0% { width: 12%; }
+      45%, 100% { width: var(--w); }
+    }
+
+    @keyframes popMeaning {
+      0%, 100% { transform: scale(0.98); filter: brightness(0.95); }
+      50% { transform: scale(1.02); filter: brightness(1.15); }
+    }
+
+    @keyframes revealToken {
+      0%, 12% { opacity: 0; transform: translateY(8px); }
+      24%, 82% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-5px); }
+    }
+
+    @keyframes cyclePrediction {
+      0%, 14% { opacity: 0; transform: translateY(16px); }
+      20%, 34% { opacity: 1; transform: translateY(0); }
+      40%, 100% { opacity: 0; transform: translateY(-16px); }
+    }
+
+    @media (max-width: 420px) {
+      .reel {
+        padding-inline: 14px;
+      }
+
+      .timer {
+        width: 86px;
+        height: 86px;
+      }
+
+      .timer span {
+        font-size: 25px;
+      }
+
+      .card {
+        min-height: 148px;
+        padding: 15px;
+      }
+
+      .card h2 {
+        font-size: 20px;
+      }
+
+      .token-ids,
+      .vector-db {
+        grid-template-columns: 1fr;
+      }
+
+      .weight-row,
+      .candidate {
+        grid-template-columns: 78px 1fr 34px;
+        gap: 6px;
+      }
+
+      .point::after {
+        font-size: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="reel" aria-label="Visual workflow explaining what happens inside an LLM after pressing send">
+    <section class="hero">
+      <div class="micro-label"><span class="pulse-dot"></span>Inside the model</div>
+      <div class="timer"><span>3<small>seconds</small></span></div>
+      <h1>Inside an LLM</h1>
+      <p>You hit send. Three seconds later you get an answer. Here is what actually happened.</p>
+    </section>
+
+    <section class="send-box" aria-label="User prompt being sent">
+      <div class="send-row">
+        <div class="prompt"><span>What happens inside an LLM?</span></div>
+        <button class="send-button" aria-label="Send">&rarr;</button>
+      </div>
+    </section>
+
+    <section class="pipeline" aria-label="LLM workflow">
+      <article class="step">
+        <div class="node">01</div>
+        <div class="card">
+          <h2>Tokenization</h2>
+          <p>Your text gets broken into tokens, not words. The model never sees letters or words, only numbers.</p>
+          <div class="visual" aria-hidden="true">
+            <div class="token-strip">
+              <span class="token">Un</span>
+              <span class="token">believ</span>
+              <span class="token">able</span>
+              <span class="token">=</span>
+              <span class="token">3 tokens</span>
+            </div>
+            <div class="token-ids">
+              <span class="token-id"><small>Token ID</small>Un -> 1428</span>
+              <span class="token-id"><small>Token ID</small>believ -> 29391</span>
+              <span class="token-id"><small>Token ID</small>able -> 481</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="node">02</div>
+        <div class="card">
+          <h2>Embeddings</h2>
+          <p>Each token becomes a vector. Similar meanings are stored close together in the model's vector space.</p>
+          <div class="visual vector-space" aria-hidden="true">
+            <span class="cluster-ring ring-royalty"></span>
+            <span class="cluster-ring ring-food"></span>
+            <span class="cluster-label royalty">Royalty cluster</span>
+            <span class="cluster-label food">Food cluster</span>
+            <span class="point king" data-label="King"></span>
+            <span class="point queen" data-label="Queen"></span>
+            <span class="point prince" data-label="Prince"></span>
+            <span class="point crown" data-label="Crown"></span>
+            <span class="point pizza" data-label="Pizza"></span>
+            <span class="point burger" data-label="Burger"></span>
+            <span class="point pasta" data-label="Pasta"></span>
+          </div>
+          <div class="vector-db" aria-hidden="true">
+            <div class="db-group">
+              <strong>Vector DB: meaning group A</strong>
+              <span>King [0.82, 0.14, 0.71]</span>
+              <span>Queen [0.80, 0.18, 0.75]</span>
+              <span>Prince [0.77, 0.11, 0.69]</span>
+              <span>Crown [0.74, 0.16, 0.72]</span>
+            </div>
+            <div class="db-group">
+              <strong>Vector DB: meaning group B</strong>
+              <span>Pizza [0.12, 0.91, 0.23]</span>
+              <span>Burger [0.18, 0.88, 0.20]</span>
+              <span>Pasta [0.10, 0.84, 0.27]</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="step">
+        <div class="node">03</div>
+        <div class="card">
+          <h2>Attention</h2>
+          <p>The model asks: "Which words explain this word?" For bank, river and steep get high attention, so bank means river edge.</p>
+          <div class="visual attention-map" aria-hidden="true">
+            <div class="sentence-row">
+              <span class="word-chip">The</span>
+              <span class="word-chip focus">bank</span>
+              <span class="word-chip">by</span>
+              <span class="word-chip">the</span>
+              <span class="word-chip">river</span>
+              <span class="word-chip">was</span>
+              <span class="word-chip">steep</span>
+            </div>
+            <div class="weight-map">
+              <div class="weight-row"><span>bank -> river</span><div class="weight-bar"><span style="--w: 88%;"></span></div><b>0.88</b></div>
+              <div class="weight-row"><span>bank -> steep</span><div class="weight-bar"><span style="--w: 72%;"></span></div><b>0.72</b></div>
+              <div class="weight-row"><span>bank -> the</span><div class="weight-bar"><span style="--w: 18%;"></span></div><b>0.18</b></div>
+            </div>
+            <div class="meaning-pop">Meaning selected: <span>riverbank</span>, not a money bank</div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="output-card">
+      <h2>Output</h2>
+      <p>After all that, it keeps the sentence so far and predicts the most likely next token.</p>
+      <div class="generation" aria-hidden="true">
+        <span class="fixed-token">The</span>
+        <span class="fixed-token">model</span>
+        <span class="fixed-token">predicts</span>
+        <span class="fixed-token">the</span>
+        <span class="fixed-token">next</span>
+        <span class="prediction-slot">
+          <span class="predicted-token">token</span>
+          <span class="predicted-token">word</span>
+          <span class="predicted-token">idea</span>
+          <span class="predicted-token">step</span>
+        </span>
+      </div>
+      <div class="candidate-row" aria-hidden="true">
+        <div class="candidate"><span>token</span><i style="--w: 82%;"></i><b>82%</b></div>
+        <div class="candidate"><span>word</span><i style="--w: 54%;"></i><b>54%</b></div>
+        <div class="candidate"><span>idea</span><i style="--w: 31%;"></i><b>31%</b></div>
+      </div>
+      <p>What feels instant is actually thousands of calculations per token.</p>
+    </section>
+
+    <aside class="cliffhanger">
+      <strong>Next reel</strong>
+      <span>The LLM has a memory limit. Cross it, and it forgets you exist.</span>
+    </aside>
+  </main>
+</body>
+</html>
