@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Embeddings: How AI Searches by Meaning</title>
+  <style>
+    :root {
+      --bg: #070a12;
+      --panel: rgba(14, 21, 38, 0.88);
+      --panel-strong: #111a2e;
+      --cyan: #39f5ff;
+      --blue: #6ea8ff;
+      --pink: #ff5cc8;
+      --yellow: #ffe66d;
+      --green: #74f2a6;
+      --orange: #ffad66;
+      --red: #ff6b7d;
+      --text: #f6fbff;
+      --muted: #a9bad3;
+      --line: rgba(115, 194, 255, 0.32);
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.44);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 14% 6%, rgba(57, 245, 255, 0.15), transparent 27%),
+        radial-gradient(circle at 88% 16%, rgba(255, 92, 200, 0.13), transparent 30%),
+        linear-gradient(135deg, #05070e 0%, #0b1020 48%, #090b13 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.032) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.032) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: linear-gradient(to bottom, #000, transparent 92%);
+    }
+
+    .reel {
+      position: relative;
+      width: min(100%, 540px);
+      margin: 0 auto;
+      padding: 24px 18px 38px;
+    }
+
+    .hero {
+      position: relative;
+      min-height: 38vh;
+      display: grid;
+      align-content: end;
+      padding: 20px 4px 24px;
+    }
+
+    .micro-label,
+    .section-tag {
+      display: inline-flex;
+      align-items: center;
+      width: max-content;
+      gap: 8px;
+      padding: 7px 11px;
+      border: 1px solid rgba(57, 245, 255, 0.35);
+      border-radius: 999px;
+      background: rgba(57, 245, 255, 0.08);
+      color: #b9fbff;
+      font-size: 11px;
+      font-weight: 850;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 18px var(--green);
+      animation: pulse 1.25s ease-in-out infinite;
+    }
+
+    h1 {
+      margin: 17px 0 13px;
+      max-width: 9ch;
+      font-size: clamp(47px, 13vw, 76px);
+      line-height: 0.88;
+      letter-spacing: -0.045em;
+      text-transform: uppercase;
+    }
+
+    h1 span {
+      color: var(--cyan);
+      text-shadow: 0 0 35px rgba(57, 245, 255, 0.3);
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 32ch;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.45;
+      font-weight: 650;
+    }
+
+    .synonym-orbit {
+      position: absolute;
+      top: 24px;
+      right: 3px;
+      width: 138px;
+      height: 138px;
+      border: 1px dashed rgba(57, 245, 255, 0.45);
+      border-radius: 50%;
+      animation: spin 12s linear infinite;
+    }
+
+    .synonym-orbit::before {
+      content: "";
+      position: absolute;
+      inset: 23px;
+      border: 1px solid rgba(255, 92, 200, 0.25);
+      border-radius: inherit;
+    }
+
+    .orbit-word {
+      position: absolute;
+      padding: 7px 9px;
+      border-radius: 7px;
+      background: #101a30;
+      border: 1px solid var(--line);
+      font-size: 11px;
+      font-weight: 900;
+      animation: counter-spin 12s linear infinite;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .orbit-word.car {
+      left: -18px;
+      top: 50px;
+      color: var(--cyan);
+    }
+
+    .orbit-word.auto {
+      right: -29px;
+      top: 50px;
+      color: var(--pink);
+    }
+
+    .orbit-equals {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: 31px;
+      font-weight: 950;
+      color: var(--yellow);
+    }
+
+    .card {
+      position: relative;
+      margin-bottom: 24px;
+      padding: 17px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 12px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -40%;
+      width: 32%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      animation: scan 4s linear infinite;
+    }
+
+    .section-tag {
+      margin-bottom: 13px;
+      padding: 5px 9px;
+      font-size: 9px;
+      color: var(--muted);
+      border-color: rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    h2 {
+      margin: 0 0 8px;
+      font-size: 25px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      text-transform: uppercase;
+    }
+
+    .explain {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.48;
+      font-weight: 620;
+    }
+
+    .convert-flow {
+      display: grid;
+      grid-template-columns: 1fr 42px 1.2fr;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .text-chip,
+    .vector-box {
+      min-height: 84px;
+      display: grid;
+      place-items: center;
+      padding: 11px;
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.055);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      text-align: center;
+    }
+
+    .text-chip strong {
+      color: var(--yellow);
+      font-size: 17px;
+    }
+
+    .text-chip small,
+    .vector-box small {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .flow-arrow {
+      position: relative;
+      height: 2px;
+      background: linear-gradient(90deg, var(--cyan), var(--pink));
+      box-shadow: 0 0 15px rgba(57, 245, 255, 0.45);
+    }
+
+    .flow-arrow::after {
+      content: "";
+      position: absolute;
+      top: -4px;
+      right: -1px;
+      width: 8px;
+      height: 8px;
+      border-top: 2px solid var(--pink);
+      border-right: 2px solid var(--pink);
+      transform: rotate(45deg);
+    }
+
+    .flow-arrow span {
+      position: absolute;
+      left: 50%;
+      bottom: 8px;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 850;
+      text-transform: uppercase;
+      transform: translateX(-50%);
+    }
+
+    .vector-numbers {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 5px;
+      color: var(--cyan);
+      font: 800 11px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .vector-numbers span {
+      padding: 4px 5px;
+      border-radius: 4px;
+      background: rgba(57, 245, 255, 0.08);
+      animation: number-glow 2.8s ease-in-out infinite;
+    }
+
+    .vector-numbers span:nth-child(2) { animation-delay: 0.35s; color: var(--pink); }
+    .vector-numbers span:nth-child(3) { animation-delay: 0.7s; color: var(--yellow); }
+    .vector-numbers span:nth-child(4) { animation-delay: 1.05s; color: var(--green); }
+
+    .map-wrap {
+      position: relative;
+      height: 330px;
+      overflow: hidden;
+      border: 1px solid rgba(115, 194, 255, 0.22);
+      border-radius: 11px;
+      background:
+        linear-gradient(rgba(110, 168, 255, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(110, 168, 255, 0.08) 1px, transparent 1px),
+        radial-gradient(circle at 28% 30%, rgba(116, 242, 166, 0.09), transparent 23%),
+        radial-gradient(circle at 76% 72%, rgba(255, 107, 125, 0.08), transparent 25%),
+        #091020;
+      background-size: 34px 34px, 34px 34px, auto, auto, auto;
+    }
+
+    .axis-x,
+    .axis-y {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .axis-x {
+      left: 18px;
+      right: 18px;
+      top: 50%;
+      height: 1px;
+    }
+
+    .axis-y {
+      top: 18px;
+      bottom: 18px;
+      left: 50%;
+      width: 1px;
+    }
+
+    .axis-label {
+      position: absolute;
+      color: rgba(169, 186, 211, 0.7);
+      font-size: 8px;
+      font-weight: 850;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .axis-label.x { right: 8px; top: calc(50% + 7px); }
+    .axis-label.y { left: calc(50% + 7px); top: 8px; }
+
+    .meaning-zone {
+      position: absolute;
+      border: 1px dashed;
+      border-radius: 50%;
+      animation: breathe 3.4s ease-in-out infinite;
+    }
+
+    .meaning-zone.transport {
+      left: 9%;
+      top: 10%;
+      width: 43%;
+      height: 42%;
+      border-color: rgba(57, 245, 255, 0.4);
+      background: rgba(57, 245, 255, 0.035);
+    }
+
+    .meaning-zone.health {
+      left: 13%;
+      bottom: 9%;
+      width: 51%;
+      height: 36%;
+      border-color: rgba(116, 242, 166, 0.42);
+      background: rgba(116, 242, 166, 0.035);
+      animation-delay: 0.5s;
+    }
+
+    .meaning-zone.repair {
+      right: 5%;
+      bottom: 6%;
+      width: 32%;
+      height: 37%;
+      border-color: rgba(255, 107, 125, 0.42);
+      background: rgba(255, 107, 125, 0.035);
+      animation-delay: 1s;
+    }
+
+    .zone-name {
+      position: absolute;
+      padding: 3px 6px;
+      border-radius: 4px;
+      background: #0d1729;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .transport .zone-name { left: 20px; top: 16px; color: var(--cyan); }
+    .health .zone-name { left: 20px; bottom: 14px; color: var(--green); }
+    .repair .zone-name { right: 14px; bottom: 13px; color: var(--red); }
+
+    .point {
+      position: absolute;
+      z-index: 3;
+      transform: translate(-50%, -50%);
+    }
+
+    .point::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 18px currentColor;
+      transform: translate(-50%, -50%);
+      animation: pulse-point 1.8s ease-in-out infinite;
+    }
+
+    .point span {
+      position: absolute;
+      width: max-content;
+      max-width: 145px;
+      padding: 5px 7px;
+      border: 1px solid currentColor;
+      border-radius: 5px;
+      background: rgba(9, 16, 32, 0.94);
+      color: var(--text);
+      font-size: 10px;
+      font-weight: 850;
+      line-height: 1.15;
+      transform: translate(-50%, 13px);
+    }
+
+    .point.car { left: 24%; top: 27%; color: var(--cyan); }
+    .point.auto { left: 34%; top: 34%; color: var(--pink); }
+    .point.lose { left: 28%; top: 69%; color: var(--green); }
+    .point.reduce { left: 43%; top: 75%; color: var(--yellow); }
+    .point.engine { left: 81%; top: 73%; color: var(--red); }
+
+    .distance-line {
+      position: absolute;
+      z-index: 2;
+      height: 2px;
+      transform-origin: left center;
+      background: repeating-linear-gradient(90deg, currentColor 0 6px, transparent 6px 11px);
+      opacity: 0.82;
+    }
+
+    .distance-line.close-one {
+      left: 24%;
+      top: 27%;
+      width: 13%;
+      color: var(--pink);
+      transform: rotate(26deg);
+    }
+
+    .distance-line.close-two {
+      left: 28%;
+      top: 69%;
+      width: 17%;
+      color: var(--yellow);
+      transform: rotate(19deg);
+    }
+
+    .distance-line.far {
+      left: 43%;
+      top: 75%;
+      width: 38%;
+      color: var(--red);
+      transform: rotate(-3deg);
+    }
+
+    .distance-note {
+      position: absolute;
+      z-index: 4;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: #111a2e;
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      font-size: 8px;
+      font-weight: 950;
+      text-transform: uppercase;
+    }
+
+    .distance-note.close {
+      left: 29%;
+      top: 27%;
+      color: var(--green);
+    }
+
+    .distance-note.far {
+      left: 59%;
+      top: 68%;
+      color: var(--red);
+    }
+
+    .legend {
+      display: flex;
+      gap: 11px;
+      margin-top: 11px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 750;
+    }
+
+    .legend span {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend i {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+
+    .legend span:last-child i {
+      background: var(--red);
+      box-shadow: 0 0 8px var(--red);
+    }
+
+    .search-demo {
+      display: grid;
+      gap: 9px;
+    }
+
+    .query-box {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 11px;
+      border: 1px solid rgba(57, 245, 255, 0.3);
+      border-radius: 8px;
+      background: rgba(57, 245, 255, 0.07);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .magnify {
+      width: 17px;
+      height: 17px;
+      flex: 0 0 auto;
+      border: 2px solid var(--cyan);
+      border-radius: 50%;
+      position: relative;
+    }
+
+    .magnify::after {
+      content: "";
+      position: absolute;
+      right: -6px;
+      bottom: -3px;
+      width: 7px;
+      height: 2px;
+      background: var(--cyan);
+      transform: rotate(45deg);
+    }
+
+    .result {
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .score {
+      display: grid;
+      place-items: center;
+      width: 43px;
+      height: 43px;
+      border-radius: 50%;
+      border: 3px solid var(--green);
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 950;
+      box-shadow: 0 0 18px rgba(116, 242, 166, 0.12);
+    }
+
+    .result.bad .score {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .result strong {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 12px;
+    }
+
+    .result small {
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .keyword-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 13px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+
+    .keyword-row b {
+      color: var(--red);
+      text-decoration: line-through;
+    }
+
+    .keyword-row strong {
+      color: var(--green);
+    }
+
+    .dimension-stage {
+      position: relative;
+      min-height: 238px;
+      display: grid;
+      align-items: end;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 10px;
+      background: #080f1d;
+      perspective: 650px;
+    }
+
+    .dimension-grid {
+      position: absolute;
+      left: -20%;
+      right: -20%;
+      bottom: -40%;
+      height: 100%;
+      background-image:
+        linear-gradient(rgba(57, 245, 255, 0.2) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(57, 245, 255, 0.2) 1px, transparent 1px);
+      background-size: 27px 27px;
+      transform: rotateX(62deg);
+      animation: grid-move 3s linear infinite;
+    }
+
+    .dimension-copy {
+      position: relative;
+      z-index: 2;
+      padding: 20px;
+      background: linear-gradient(transparent, rgba(8, 15, 29, 0.95) 37%);
+    }
+
+    .big-number {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      color: var(--cyan);
+      font-size: 52px;
+      font-weight: 950;
+      line-height: 0.9;
+      letter-spacing: -0.05em;
+      text-shadow: 0 0 30px rgba(57, 245, 255, 0.28);
+    }
+
+    .big-number span {
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .dimension-copy p {
+      margin: 10px 0 0;
+      max-width: 31ch;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .dimension-chips {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+
+    .dimension-chips i {
+      position: absolute;
+      display: block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--pink);
+      box-shadow: 0 0 10px var(--pink);
+      animation: float-up 4s linear infinite;
+    }
+
+    .dimension-chips i:nth-child(1) { left: 17%; top: 72%; animation-delay: 0s; }
+    .dimension-chips i:nth-child(2) { left: 31%; top: 58%; animation-delay: 0.8s; background: var(--cyan); }
+    .dimension-chips i:nth-child(3) { left: 52%; top: 76%; animation-delay: 1.6s; background: var(--yellow); }
+    .dimension-chips i:nth-child(4) { left: 68%; top: 50%; animation-delay: 2.4s; background: var(--green); }
+    .dimension-chips i:nth-child(5) { left: 83%; top: 65%; animation-delay: 3.2s; background: var(--orange); }
+
+    .takeaway {
+      padding: 22px 18px;
+      border-color: rgba(116, 242, 166, 0.28);
+      background:
+        radial-gradient(circle at 50% 0%, rgba(116, 242, 166, 0.11), transparent 52%),
+        var(--panel);
+      text-align: center;
+    }
+
+    .takeaway .eyebrow {
+      color: var(--green);
+      font-size: 9px;
+      font-weight: 950;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .takeaway h2 {
+      margin: 8px auto 6px;
+      max-width: 15ch;
+      font-size: 28px;
+    }
+
+    .takeaway h2 span {
+      color: var(--cyan);
+    }
+
+    .takeaway p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(0.78); opacity: 0.65; }
+      50% { transform: scale(1.15); opacity: 1; }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes counter-spin {
+      to { transform: rotate(-360deg); }
+    }
+
+    @keyframes scan {
+      to { left: 110%; }
+    }
+
+    @keyframes number-glow {
+      0%, 100% { background: rgba(57, 245, 255, 0.06); transform: translateY(0); }
+      50% { background: rgba(57, 245, 255, 0.18); transform: translateY(-2px); }
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: scale(0.985); opacity: 0.7; }
+      50% { transform: scale(1.015); opacity: 1; }
+    }
+
+    @keyframes pulse-point {
+      0%, 100% { transform: translate(-50%, -50%) scale(0.8); }
+      50% { transform: translate(-50%, -50%) scale(1.15); }
+    }
+
+    @keyframes grid-move {
+      to { background-position: 0 27px, 27px 0; }
+    }
+
+    @keyframes float-up {
+      0% { transform: translateY(40px) scale(0.7); opacity: 0; }
+      35% { opacity: 1; }
+      100% { transform: translateY(-150px) scale(1.2); opacity: 0; }
+    }
+
+    @media (max-width: 420px) {
+      .synonym-orbit {
+        width: 114px;
+        height: 114px;
+      }
+
+      .orbit-word.auto {
+        right: -19px;
+      }
+
+      .map-wrap {
+        height: 300px;
+      }
+
+      .point span {
+        max-width: 118px;
+        font-size: 9px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="reel">
+    <section class="hero">
+      <div class="synonym-orbit" aria-hidden="true">
+        <div class="orbit-word car">CAR</div>
+        <div class="orbit-word auto">AUTOMOBILE</div>
+        <div class="orbit-equals">≈</div>
+      </div>
+      <div class="micro-label"><span class="pulse-dot"></span> AI explained visually</div>
+      <h1>How AI Knows <span>Meaning</span></h1>
+      <p>Why does AI understand that “car” and “automobile” are almost the same?</p>
+    </section>
+
+    <section class="card">
+      <div class="section-tag">01 · What embeddings are</div>
+      <h2>Text becomes numbers</h2>
+      <p class="explain">Before text enters a vector database, an embedding model converts it into a list of numbers called a <strong>vector</strong>.</p>
+
+      <div class="convert-flow" aria-label="Text converted into a vector">
+        <div class="text-chip">
+          <div>
+            <strong>“car”</strong>
+            <small>Text</small>
+          </div>
+        </div>
+        <div class="flow-arrow"><span>Model</span></div>
+        <div class="vector-box">
+          <div>
+            <div class="vector-numbers">
+              <span>0.82</span><span>-0.14</span><span>0.47</span><span>0.91</span><span>...</span>
+            </div>
+            <small>Embedding vector</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-tag">02 · Meaning as coordinates</div>
+      <h2>A giant map of meaning</h2>
+      <p class="explain">Think of vectors as coordinates. Similar meanings land close together; unrelated meanings land farther apart.</p>
+
+      <div class="map-wrap" aria-label="Two-dimensional illustration of similar and unrelated meanings">
+        <div class="axis-x"></div>
+        <div class="axis-y"></div>
+        <span class="axis-label x">Meaning direction →</span>
+        <span class="axis-label y">Meaning direction ↑</span>
+
+        <div class="meaning-zone transport"><span class="zone-name">Transport</span></div>
+        <div class="meaning-zone health"><span class="zone-name">Health goals</span></div>
+        <div class="meaning-zone repair"><span class="zone-name">Mechanical repair</span></div>
+
+        <div class="distance-line close-one"></div>
+        <div class="distance-line close-two"></div>
+        <div class="distance-line far"></div>
+        <span class="distance-note close">Close = similar</span>
+        <span class="distance-note far">Far = different</span>
+
+        <div class="point car"><span>car</span></div>
+        <div class="point auto"><span>automobile</span></div>
+        <div class="point lose"><span>How to lose weight</span></div>
+        <div class="point reduce"><span>Tips for weight reduction</span></div>
+        <div class="point engine"><span>How to fix a car engine</span></div>
+      </div>
+
+      <div class="legend">
+        <span><i></i> Similar meaning</span>
+        <span><i></i> Unrelated meaning</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-tag">03 · Practical example</div>
+      <h2>Search by idea, not words</h2>
+      <p class="explain">A vector search compares meaning, so it can find a strong match even when the exact words are different.</p>
+
+      <div class="search-demo">
+        <div class="query-box"><span class="magnify"></span> How to lose weight</div>
+
+        <div class="result">
+          <div class="score">96%</div>
+          <div>
+            <strong>Tips for weight reduction</strong>
+            <small>Very close meaning</small>
+          </div>
+        </div>
+
+        <div class="result bad">
+          <div class="score">12%</div>
+          <div>
+            <strong>How to fix a car engine</strong>
+            <small>Far away meaning</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="keyword-row"><b>Keyword match</b><span>→</span><strong>Meaning match</strong></div>
+    </section>
+
+    <section class="card">
+      <div class="section-tag">04 · The important detail</div>
+      <h2>The real map is huge</h2>
+      <p class="explain">The simple map above is only an illustration. Real embedding vectors are not just 2D or 3D.</p>
+
+      <div class="dimension-stage">
+        <div class="dimension-grid"></div>
+        <div class="dimension-chips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="dimension-copy">
+          <div class="big-number">100s–1000s <span>of numbers</span></div>
+          <p>Each dimension captures a tiny signal about meaning, context, or relationships.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card takeaway">
+      <div class="eyebrow">The takeaway</div>
+      <h2>Embeddings let AI search by <span>meaning</span>, not just keywords.</h2>
+      <p>Words become vectors. Similar ideas become neighbors.</p>
+    </section>
+  </main>
+</body>
+</html>
