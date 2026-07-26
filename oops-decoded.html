@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OOPs Decoded</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root{
+    --bg:#0a0a0f;
+    --violet:#8b5cf6;
+    --violet2:#a855f7;
+    --cyan:#22d3ee;
+    --cyan2:#06b6d4;
+    --pink:#ec4899;
+    --glass-bg:rgba(255,255,255,0.045);
+    --glass-border:rgba(255,255,255,0.12);
+    --text:#f5f5fa;
+    --text-dim:#8b8b9a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth; background:var(--bg);}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overflow-x:hidden;
+    position:relative;
+  }
+  .bg-blob{
+    position:fixed; border-radius:50%; filter:blur(110px); pointer-events:none; z-index:0; opacity:0.35;
+  }
+  .bg-blob.b1{ width:500px; height:500px; background:var(--violet); top:-150px; left:-150px; }
+  .bg-blob.b2{ width:500px; height:500px; background:var(--cyan); bottom:-150px; right:-150px; }
+  .bg-blob.b3{ width:400px; height:400px; background:var(--pink); top:60%; left:40%; opacity:0.15;}
+
+  section{ position:relative; z-index:1; padding:6rem 1.5rem; max-width:1100px; margin:0 auto; }
+
+  .gradient-text{
+    background:linear-gradient(135deg,var(--violet2),var(--cyan));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+
+  /* ---------- Reveal on scroll ---------- */
+  .reveal{ opacity:0; transform:translateY(50px); transition:opacity 0.9s cubic-bezier(.2,.7,.3,1), transform 0.9s cubic-bezier(.2,.7,.3,1); }
+  .reveal.visible{ opacity:1; transform:translateY(0); }
+  .reveal-stagger > *{ opacity:0; transform:translateY(30px); transition:opacity 0.7s ease, transform 0.7s ease; }
+  .reveal.visible .reveal-stagger > *{ opacity:1; transform:translateY(0); }
+  .reveal-stagger > *:nth-child(1){transition-delay:.05s;}
+  .reveal-stagger > *:nth-child(2){transition-delay:.15s;}
+  .reveal-stagger > *:nth-child(3){transition-delay:.25s;}
+  .reveal-stagger > *:nth-child(4){transition-delay:.35s;}
+
+  /* ---------- Section titles ---------- */
+  .section-title{
+    font-size:clamp(2rem, 5vw, 3rem);
+    font-weight:800;
+    text-align:center;
+    margin-bottom:2.5rem;
+    letter-spacing:-0.02em;
+  }
+  .section-title .vs{ color:var(--text-dim); font-weight:400; font-size:0.6em; margin:0 .3em; }
+  .micro-caption{
+    text-align:center; color:var(--text-dim); margin-top:2.5rem; font-size:0.95rem;
+    letter-spacing:0.01em;
+  }
+  .section-sub{
+    text-align:center; color:var(--text-dim); margin-top:-1.75rem; margin-bottom:2.5rem;
+    font-size:1rem; max-width:480px; margin-left:auto; margin-right:auto;
+  }
+  .tiny-label{
+    text-align:center; text-transform:uppercase; letter-spacing:0.12em; font-size:0.68rem;
+    color:var(--text-dim); margin-top:1rem; margin-bottom:0.5rem;
+  }
+
+  /* ---------- Code chips ---------- */
+  .chip{
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:"SF Mono","Fira Code",Consolas,monospace;
+    font-size:0.72rem;
+    padding:5px 12px;
+    border-radius:999px;
+    border:1px solid;
+    white-space:nowrap;
+    transition:transform .2s ease;
+  }
+  .chip i{ font-size:0.7rem; }
+  .chip-method{ background:rgba(139,92,246,0.15); border-color:rgba(139,92,246,0.45); color:#d5c8fb; }
+  .chip-prop{ background:rgba(34,211,238,0.15); border-color:rgba(34,211,238,0.45); color:#a8eef9; }
+  .chip-new{
+    background:rgba(236,72,153,0.18); border-color:rgba(236,72,153,0.6); color:#fbc7de;
+    box-shadow:0 0 14px rgba(236,72,153,0.45);
+  }
+  .chip-faded{ opacity:0.35; filter:grayscale(0.4); box-shadow:none; }
+  .chip.blurred{ filter:blur(3px); opacity:0.6; }
+  .chip.big{ font-size:1rem; padding:8px 20px; }
+  .chip-blueprint{
+    background:transparent; border:1px dashed rgba(255,255,255,0.32); color:var(--text-dim);
+  }
+
+  /* ---------- Glass card ---------- */
+  .glass-card{
+    background:var(--glass-bg);
+    border:1px solid var(--glass-border);
+    border-radius:24px;
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+    padding:1.75rem;
+    box-shadow:0 8px 32px rgba(0,0,0,0.35);
+  }
+
+  .label{ text-align:center; font-weight:700; margin-top:1rem; font-size:1rem; }
+  .label i{ margin-right:6px; color:var(--cyan); }
+
+  /* ---------- Phone shape ---------- */
+  .phone{
+    width:110px; height:220px; border-radius:26px; position:relative; margin:0 auto;
+  }
+  .phone::before{ /* notch */
+    content:""; position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    width:36px; height:6px; border-radius:4px; background:rgba(255,255,255,0.25);
+  }
+  .phone::after{ /* home indicator */
+    content:""; position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+    width:34px; height:3px; border-radius:3px; background:rgba(255,255,255,0.2);
+  }
+  .phone-wireframe{
+    background:transparent;
+    border:2px dashed rgba(255,255,255,0.35);
+  }
+  .phone-solid{
+    border:2px solid rgba(255,255,255,0.18);
+    background:linear-gradient(160deg, var(--c1,#8b5cf6), var(--c2,#4c1d95));
+    box-shadow:0 0 45px var(--glow,#8b5cf6), inset 0 0 25px rgba(255,255,255,0.08);
+  }
+  .phone-mini{ width:64px; height:120px; border-radius:16px; }
+  .phone-mini::before{ width:20px; height:4px; top:6px; }
+  .phone-mini::after{ width:18px; bottom:5px; }
+
+  .phone-blueprint{
+    width:230px; height:440px; border-radius:38px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:9px; padding:44px 18px 26px;
+  }
+  .phone-blueprint .chip{ font-size:0.72rem; padding:5px 12px; }
+  @media (max-width:520px){
+    .phone-blueprint{ width:190px; height:380px; padding:38px 14px 22px; gap:7px; }
+    .phone-blueprint .chip{ font-size:0.66rem; padding:4px 10px; }
+  }
+
+  /* ================= HERO ================= */
+  .hero{
+    min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; gap:1.5rem; padding-top:2rem;
+  }
+  .phone-hero-icon{
+    font-size:6rem;
+    background:linear-gradient(135deg,var(--violet2),var(--cyan));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 35px rgba(139,92,246,0.55)) drop-shadow(0 0 55px rgba(34,211,238,0.35));
+    animation:float 4s ease-in-out infinite;
+  }
+  @keyframes float{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(-14px);} }
+  .hero h1{ font-size:clamp(2.6rem,8vw,5rem); font-weight:900; letter-spacing:-0.03em; }
+  .hero .subtext{ color:var(--text-dim); font-size:clamp(1rem,2.2vw,1.25rem); max-width:520px; }
+  .scroll-indicator{
+    position:absolute; bottom:2.5rem; color:var(--text-dim); font-size:1.4rem;
+    animation:bounce 1.8s ease-in-out infinite;
+  }
+  @keyframes bounce{ 0%,100%{transform:translateY(0); opacity:0.5;} 50%{transform:translateY(10px); opacity:1;} }
+
+  /* ================= CLASS vs OBJECT ================= */
+  .class-object-grid{
+    display:grid; grid-template-columns:1fr 2fr; gap:2.5rem; align-items:start;
+  }
+  .blueprint-col{ display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .objects-col{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1.5rem; }
+  .object-card{
+    background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:22px;
+    padding:1.25rem; backdrop-filter:blur(16px); text-align:center;
+    transition:transform .3s ease, box-shadow .3s ease;
+  }
+  .object-card:hover{ transform:translateY(-6px); box-shadow:0 12px 40px rgba(0,0,0,0.4); }
+  .prop-chips, .method-chips{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:0.85rem; }
+
+  /* ================= INHERITANCE ================= */
+  .inheritance-flow{ display:flex; flex-direction:column; align-items:center; gap:0; }
+  .parent-card, .child-card{ width:100%; max-width:420px; }
+  .flow-arrow{ position:relative; height:80px; width:2px; background:linear-gradient(var(--violet2),var(--cyan)); margin:0.5rem 0; opacity:0.5; }
+  .flow-arrow .flow-dot{
+    position:absolute; left:50%; transform:translateX(-50%);
+    width:8px; height:8px; border-radius:50%; background:var(--cyan);
+    box-shadow:0 0 10px var(--cyan);
+    animation:flowdown 2.2s linear infinite;
+  }
+  .flow-arrow .flow-dot:nth-child(2){ animation-delay:0.7s; }
+  .flow-arrow .flow-dot:nth-child(3){ animation-delay:1.4s; }
+  @keyframes flowdown{ 0%{ top:-8px; opacity:0;} 15%{opacity:1;} 90%{opacity:1;} 100%{ top:100%; opacity:0;} }
+  .arrow-icon{ position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); color:var(--cyan); font-size:1.1rem; }
+  .child-card .method-chips, .child-card .prop-chips{ justify-content:center; }
+
+  /* ================= ENCAPSULATION ================= */
+  .capsule-wrap{ display:flex; flex-direction:column; align-items:center; gap:2rem; }
+  .capsule{
+    position:relative; width:200px; height:260px; border-radius:36px;
+    background:radial-gradient(circle at 30% 20%, rgba(139,92,246,0.25), rgba(10,10,15,0.9) 70%);
+    border:1px solid var(--glass-border);
+    box-shadow:0 0 60px rgba(139,92,246,0.25), inset 0 0 40px rgba(0,0,0,0.6);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .lock-overlay{
+    font-size:2.6rem; color:var(--cyan);
+    filter:drop-shadow(0 0 18px rgba(34,211,238,0.7));
+    z-index:2;
+    animation:pulseglow 2.4s ease-in-out infinite;
+  }
+  @keyframes pulseglow{ 0%,100%{filter:drop-shadow(0 0 10px rgba(34,211,238,0.5));} 50%{filter:drop-shadow(0 0 26px rgba(34,211,238,0.9));} }
+  .internals{
+    position:absolute; display:flex; flex-direction:column; gap:10px; z-index:1;
+  }
+  .interface-buttons{ display:flex; flex-wrap:wrap; gap:1rem; justify-content:center; }
+
+  /* Abstraction layers */
+  .abstraction-stack{ display:flex; flex-direction:column; align-items:center; gap:0.5rem; }
+  .impl-layer{
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    opacity:0.4; filter:blur(1.5px); margin-bottom:0.5rem;
+  }
+  .gear-spin{ font-size:1.9rem; color:var(--text-dim); animation:spin 6s linear infinite; }
+  .code-skeleton{ display:flex; flex-direction:column; gap:6px; align-items:center; }
+  .code-skeleton span{ display:block; height:6px; border-radius:3px; background:rgba(255,255,255,0.18); }
+  .code-skeleton span:nth-child(1){ width:80px; }
+  .code-skeleton span:nth-child(2){ width:56px; }
+  .code-skeleton span:nth-child(3){ width:68px; }
+  .tap-btn{
+    font-family:"SF Mono","Fira Code",Consolas,monospace;
+    background:rgba(139,92,246,0.15);
+    border:1px solid rgba(139,92,246,0.5);
+    color:#e4d9ff;
+    padding:0.7rem 1.3rem;
+    border-radius:999px;
+    font-size:0.85rem;
+    cursor:pointer;
+    display:flex; align-items:center; gap:8px;
+    transition:transform .2s ease, box-shadow .2s ease, background .2s ease;
+  }
+  .tap-btn i{ color:var(--cyan); }
+  .tap-btn:hover{
+    transform:translateY(-3px) scale(1.04);
+    box-shadow:0 0 22px rgba(139,92,246,0.55);
+    background:rgba(139,92,246,0.28);
+  }
+
+  /* ================= POLYMORPHISM ================= */
+  .method-call-label{ text-align:center; margin-bottom:2.5rem; font-size:1.1rem; color:var(--text-dim); }
+  .poly-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1.5rem; }
+  .poly-card{
+    background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:22px;
+    padding:1.75rem 1rem; text-align:center; display:flex; flex-direction:column; align-items:center; gap:1rem;
+    min-height:170px; justify-content:center;
+  }
+  .poly-icon{ font-size:2.4rem; color:var(--cyan); filter:drop-shadow(0 0 14px rgba(34,211,238,0.6)); }
+
+  /* fingerprint scan animation */
+  .fingerprint-anim{ position:relative; animation:fpglow 2s ease-in-out infinite; }
+  @keyframes fpglow{
+    0%,100%{ color:var(--cyan); filter:drop-shadow(0 0 8px rgba(34,211,238,0.5)); }
+    50%{ color:var(--violet2); filter:drop-shadow(0 0 20px rgba(139,92,246,0.85)); }
+  }
+
+  /* face scan ring */
+  .face-scan-wrap{ position:relative; width:60px; height:60px; display:flex; align-items:center; justify-content:center; }
+  .face-scan-wrap .poly-icon{ font-size:2.2rem; }
+  .scan-ring{
+    position:absolute; inset:-8px; border-radius:50%;
+    border:2px dashed var(--violet2);
+    animation:spin 3s linear infinite;
+    opacity:0.8;
+  }
+  @keyframes spin{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+
+  /* pattern lock */
+  .pattern-grid{ width:70px; height:70px; }
+  .pattern-svg{ width:100%; height:100%; }
+  .pattern-svg circle{ fill:rgba(34,211,238,0.35); }
+  .pattern-line{
+    fill:none; stroke:var(--cyan); stroke-width:3; stroke-linecap:round; stroke-linejoin:round;
+    stroke-dasharray:170; stroke-dashoffset:170;
+    filter:drop-shadow(0 0 6px rgba(34,211,238,0.8));
+    animation:drawpattern 2.4s ease-in-out infinite;
+  }
+  @keyframes drawpattern{
+    0%{ stroke-dashoffset:170; }
+    45%{ stroke-dashoffset:0; }
+    75%{ stroke-dashoffset:0; }
+    100%{ stroke-dashoffset:-170; }
+  }
+
+  /* PIN pad */
+  .pin-pad{
+    display:grid; grid-template-columns:repeat(3,16px); grid-template-rows:repeat(3,16px); gap:8px;
+  }
+  .pin-key{
+    width:16px; height:16px; border-radius:5px;
+    background:rgba(139,92,246,0.18);
+    border:1px solid rgba(139,92,246,0.4);
+  }
+  .pin-key{ animation:pinpulse 2.7s ease-in-out infinite; }
+  .pin-pad .pin-key:nth-child(1){animation-delay:0s;}
+  .pin-pad .pin-key:nth-child(2){animation-delay:0.15s;}
+  .pin-pad .pin-key:nth-child(3){animation-delay:0.3s;}
+  .pin-pad .pin-key:nth-child(4){animation-delay:0.45s;}
+  .pin-pad .pin-key:nth-child(5){animation-delay:0.6s;}
+  .pin-pad .pin-key:nth-child(6){animation-delay:0.75s;}
+  .pin-pad .pin-key:nth-child(7){animation-delay:0.9s;}
+  .pin-pad .pin-key:nth-child(8){animation-delay:1.05s;}
+  .pin-pad .pin-key:nth-child(9){animation-delay:1.2s;}
+  @keyframes pinpulse{
+    0%,90%,100%{ background:rgba(139,92,246,0.18); box-shadow:none; }
+    5%{ background:var(--cyan); box-shadow:0 0 10px var(--cyan); }
+  }
+
+  .footer{ text-align:center; padding:3rem 1.5rem 4rem; color:var(--text-dim); font-size:0.85rem; position:relative; z-index:1; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width:820px){
+    .class-object-grid{ grid-template-columns:1fr; }
+    .blueprint-col{ margin-bottom:1rem; }
+  }
+  @media (max-width:520px){
+    section{ padding:4rem 1.1rem; }
+    .phone{ width:90px; height:180px; }
+    .poly-grid{ grid-template-columns:repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-blob b1"></div>
+<div class="bg-blob b2"></div>
+<div class="bg-blob b3"></div>
+
+<!-- HERO -->
+<section class="hero">
+  <i class="fa-solid fa-mobile-screen-button phone-hero-icon"></i>
+  <h1 class="gradient-text">OOPs Decoded</h1>
+  <p class="subtext">Object-Oriented Programming, explained through the phone in your hand.</p>
+  <div class="scroll-indicator"><i class="fa-solid fa-chevron-down"></i></div>
+</section>
+
+<!-- CLASS vs OBJECT -->
+<section class="reveal">
+  <h2 class="section-title">Class <span class="vs">vs</span> Object</h2>
+  <div class="class-object-grid">
+    <div class="blueprint-col">
+      <div class="phone phone-wireframe phone-blueprint">
+        <span class="chip chip-blueprint">storage</span>
+        <span class="chip chip-blueprint">ram</span>
+        <span class="chip chip-blueprint">screen_size</span>
+        <span class="chip chip-blueprint">processor</span>
+        <span class="chip chip-blueprint"><i class="fa-solid fa-download"></i>install_app()</span>
+        <span class="chip chip-blueprint"><i class="fa-solid fa-phone"></i>call()</span>
+        <span class="chip chip-blueprint"><i class="fa-solid fa-comment"></i>send_message()</span>
+      </div>
+      <div class="label">Class <span style="color:var(--text-dim); font-weight:400;">(Blueprint)</span></div>
+    </div>
+    <div class="objects-col reveal-stagger">
+      <div class="object-card">
+        <div class="phone phone-solid" style="--c1:#8b5cf6;--c2:#4c1d95;--glow:#8b5cf6"></div>
+        <div class="label">iPhone 15</div>
+        <div class="prop-chips">
+          <span class="chip chip-prop">storage: 256GB</span>
+          <span class="chip chip-prop">ram: 8GB</span>
+          <span class="chip chip-prop">screen: 6.1"</span>
+        </div>
+        <div class="method-chips">
+          <span class="chip chip-method"><i class="fa-solid fa-download"></i>install_app()</span>
+          <span class="chip chip-method"><i class="fa-solid fa-phone"></i>call()</span>
+          <span class="chip chip-method"><i class="fa-solid fa-comment"></i>send_message()</span>
+        </div>
+      </div>
+      <div class="object-card">
+        <div class="phone phone-solid" style="--c1:#22d3ee;--c2:#0e7490;--glow:#22d3ee"></div>
+        <div class="label">Galaxy S24</div>
+        <div class="prop-chips">
+          <span class="chip chip-prop">storage: 128GB</span>
+          <span class="chip chip-prop">ram: 12GB</span>
+          <span class="chip chip-prop">screen: 6.2"</span>
+        </div>
+        <div class="method-chips">
+          <span class="chip chip-method"><i class="fa-solid fa-download"></i>install_app()</span>
+          <span class="chip chip-method"><i class="fa-solid fa-phone"></i>call()</span>
+          <span class="chip chip-method"><i class="fa-solid fa-comment"></i>send_message()</span>
+        </div>
+      </div>
+      <div class="object-card">
+        <div class="phone phone-solid" style="--c1:#ec4899;--c2:#831843;--glow:#ec4899"></div>
+        <div class="label">Pixel 9</div>
+        <div class="prop-chips">
+          <span class="chip chip-prop">storage: 512GB</span>
+          <span class="chip chip-prop">ram: 16GB</span>
+          <span class="chip chip-prop">screen: 6.3"</span>
+        </div>
+        <div class="method-chips">
+          <span class="chip chip-method"><i class="fa-solid fa-download"></i>install_app()</span>
+          <span class="chip chip-method"><i class="fa-solid fa-phone"></i>call()</span>
+          <span class="chip chip-method"><i class="fa-solid fa-comment"></i>send_message()</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="micro-caption">Same blueprint. Different values. Same behavior.</p>
+</section>
+
+<!-- INHERITANCE -->
+<section class="reveal">
+  <h2 class="section-title">Inheritance</h2>
+  <div class="inheritance-flow">
+    <div class="glass-card parent-card">
+      <div class="label"><i class="fa-solid fa-mobile-screen-button"></i>Phone</div>
+      <div class="prop-chips">
+        <span class="chip chip-prop">storage</span>
+        <span class="chip chip-prop">ram</span>
+        <span class="chip chip-prop">screen_size</span>
+        <span class="chip chip-prop">processor</span>
+      </div>
+      <div class="method-chips">
+        <span class="chip chip-method"><i class="fa-solid fa-phone"></i>call()</span>
+        <span class="chip chip-method"><i class="fa-solid fa-comment"></i>send_message()</span>
+        <span class="chip chip-method"><i class="fa-solid fa-download"></i>install_app()</span>
+      </div>
+    </div>
+    <div class="flow-arrow">
+      <div class="flow-dot"></div>
+      <div class="flow-dot"></div>
+      <div class="flow-dot"></div>
+      <i class="fa-solid fa-chevron-down arrow-icon"></i>
+    </div>
+    <div class="glass-card child-card" style="margin-top:1.5rem;">
+      <div class="label"><i class="fa-solid fa-mobile-screen-button"></i>Fold Phone</div>
+      <div class="prop-chips">
+        <span class="chip chip-prop chip-faded">storage</span>
+        <span class="chip chip-prop chip-faded">ram</span>
+        <span class="chip chip-prop chip-faded">screen_size</span>
+        <span class="chip chip-prop chip-faded">processor</span>
+        <span class="chip chip-prop chip-new">hinge_angle</span>
+        <span class="chip chip-prop chip-new">screen_state</span>
+      </div>
+      <div class="method-chips">
+        <span class="chip chip-method chip-faded">call()</span>
+        <span class="chip chip-method chip-faded">send_message()</span>
+        <span class="chip chip-method chip-faded">install_app()</span>
+        <span class="chip chip-method chip-new"><i class="fa-solid fa-down-left-and-up-right-to-center"></i>fold()</span>
+        <span class="chip chip-method chip-new"><i class="fa-solid fa-up-right-and-down-left-from-center"></i>unfold()</span>
+      </div>
+    </div>
+  </div>
+  <p class="micro-caption">Traits flow down. The child extends with its own.</p>
+</section>
+
+<!-- ENCAPSULATION -->
+<section class="reveal">
+  <h2 class="section-title">Encapsulation</h2>
+  <p class="section-sub">Properties + functionalities, bundled into one unit. Internal state stays private.</p>
+  <div class="capsule-wrap">
+    <div class="capsule">
+      <div class="internals">
+        <span class="chip chip-prop blurred">ram</span>
+        <span class="chip chip-prop blurred">processor</span>
+        <span class="chip chip-prop blurred">storage</span>
+      </div>
+      <i class="fa-solid fa-lock lock-overlay"></i>
+    </div>
+    <div class="tiny-label"><i class="fa-solid fa-lock" style="margin-right:5px;"></i>private</div>
+    <div class="tiny-label" style="margin-top:1.5rem;"><i class="fa-solid fa-lock-open" style="margin-right:5px;"></i>public</div>
+    <div class="interface-buttons">
+      <button class="tap-btn"><i class="fa-solid fa-phone"></i>call()</button>
+      <button class="tap-btn"><i class="fa-solid fa-comment"></i>send_message()</button>
+      <button class="tap-btn"><i class="fa-solid fa-download"></i>install_app()</button>
+    </div>
+  </div>
+  <p class="micro-caption">Private state, public methods — sealed together.</p>
+</section>
+
+<!-- ABSTRACTION -->
+<section class="reveal">
+  <h2 class="section-title">Abstraction</h2>
+  <p class="section-sub">Only what it does is visible. Not how it's done.</p>
+  <div class="capsule-wrap">
+    <div class="abstraction-stack">
+      <i class="fa-solid fa-mobile-screen-button" style="font-size:1.6rem; color:var(--cyan); filter:drop-shadow(0 0 10px rgba(34,211,238,0.6)); margin-bottom:0.5rem;"></i>
+      <div class="impl-layer">
+        <i class="fa-solid fa-gear gear-spin"></i>
+        <div class="code-skeleton">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+      <div class="interface-buttons">
+        <button class="tap-btn"><i class="fa-solid fa-phone"></i>call()</button>
+        <button class="tap-btn"><i class="fa-solid fa-comment"></i>send_message()</button>
+        <button class="tap-btn"><i class="fa-solid fa-download"></i>install_app()</button>
+      </div>
+    </div>
+  </div>
+  <p class="micro-caption">Simple interface. Complex machinery, hidden underneath.</p>
+</section>
+
+<!-- POLYMORPHISM -->
+<section class="reveal">
+  <h2 class="section-title">Polymorphism</h2>
+  <p class="method-call-label">Same call: <span class="chip chip-method big"><i class="fa-solid fa-lock-open"></i>unlock()</span></p>
+  <div class="poly-grid reveal-stagger">
+    <div class="poly-card">
+      <i class="fa-solid fa-fingerprint poly-icon fingerprint-anim"></i>
+      <div class="label" style="margin-top:0;">Fingerprint</div>
+    </div>
+    <div class="poly-card">
+      <div class="face-scan-wrap">
+        <i class="fa-solid fa-face-smile poly-icon"></i>
+        <div class="scan-ring"></div>
+      </div>
+      <div class="label" style="margin-top:0;">Face Scan</div>
+    </div>
+    <div class="poly-card">
+      <div class="pattern-grid">
+        <svg viewBox="0 0 100 100" class="pattern-svg">
+          <circle cx="20" cy="20" r="5"/><circle cx="50" cy="20" r="5"/><circle cx="80" cy="20" r="5"/>
+          <circle cx="20" cy="50" r="5"/><circle cx="50" cy="50" r="5"/><circle cx="80" cy="50" r="5"/>
+          <circle cx="20" cy="80" r="5"/><circle cx="50" cy="80" r="5"/><circle cx="80" cy="80" r="5"/>
+          <polyline points="20,20 50,50 80,80" class="pattern-line"/>
+        </svg>
+      </div>
+      <div class="label" style="margin-top:0;">Pattern</div>
+    </div>
+    <div class="poly-card">
+      <div class="pin-pad">
+        <div class="pin-key"></div><div class="pin-key"></div><div class="pin-key"></div>
+        <div class="pin-key"></div><div class="pin-key"></div><div class="pin-key"></div>
+        <div class="pin-key"></div><div class="pin-key"></div><div class="pin-key"></div>
+      </div>
+      <div class="label" style="margin-top:0;">PIN</div>
+    </div>
+  </div>
+  <p class="micro-caption">Same method. Same object type. Different execution, every time.</p>
+</section>
+
+<footer class="footer">
+  OOPs Decoded &middot; the smartphone in your pocket is a masterclass in OOP
+</footer>
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
