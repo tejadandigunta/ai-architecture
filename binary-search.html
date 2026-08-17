@@ -1,0 +1,545 @@
+<style>
+  :root{
+    --bg:#ffffff;
+    --ink:#161a1f;
+    --ink-muted:#5c6470;
+    --panel:#f5f3ef;
+    --panel-border:#e4e0d8;
+    --grey-100:#f0eee9;
+    --grey-200:#e2ded6;
+    --grey-400:#a89f92;
+    --accent:#d9591e;
+    --accent-strong:#b8480f;
+    --accent-ink:#ffffff;
+    --accent-soft:#f7e4d8;
+    --success:#1f8a5a;
+    --success-ink:#ffffff;
+    --success-soft:#dcf0e6;
+    --radius-sm:7px;
+    --radius-md:12px;
+    --cell-gap:clamp(4px,1.6vw,8px);
+    --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,Consolas,monospace;
+  }
+
+  *{box-sizing:border-box;}
+
+  .page{
+    max-width:640px;
+    margin:0 auto;
+    padding:clamp(1.5rem,6vw,3rem) clamp(1rem,4vw,1.5rem) clamp(2.5rem,8vw,4rem);
+    display:flex;
+    flex-direction:column;
+    gap:clamp(1.25rem,3vw,1.75rem);
+    color:var(--ink);
+    font-family:var(--font-sans);
+    background:var(--bg);
+  }
+
+  .masthead{display:flex;flex-direction:column;gap:.6rem;text-align:center;}
+  .eyebrow{
+    margin:0;
+    font-size:.72rem;
+    font-weight:700;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--accent);
+  }
+  h1{
+    margin:0;
+    font-size:clamp(1.5rem,1.05rem + 2.2vw,2.15rem);
+    font-weight:700;
+    letter-spacing:-0.01em;
+    text-wrap:balance;
+  }
+  .lede{
+    margin:0;
+    font-size:1rem;
+    line-height:1.55;
+    color:var(--ink-muted);
+    text-wrap:balance;
+  }
+  .meta-line{
+    margin:.15rem 0 0;
+    font-size:.85rem;
+    font-family:var(--font-mono);
+    color:var(--ink-muted);
+  }
+  .meta-line strong{color:var(--ink);font-weight:700;}
+
+  .tabs{
+    display:flex;
+    gap:.25rem;
+    border-bottom:1px solid var(--panel-border);
+  }
+  .tab{
+    flex:1;
+    appearance:none;
+    background:none;
+    border:none;
+    border-bottom:2.5px solid transparent;
+    padding:.65rem .5rem;
+    font:600 .88rem var(--font-sans);
+    color:var(--ink-muted);
+    cursor:pointer;
+    transition:color .2s ease,border-color .2s ease;
+  }
+  .tab:hover{color:var(--ink);}
+  .tab.active{color:var(--ink);border-color:var(--accent);}
+  .tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  .stage-card{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:var(--radius-md);
+    padding:clamp(1rem,4vw,1.5rem);
+  }
+
+  .array-wrap{display:flex;flex-direction:column;}
+  .indicator-row{position:relative;height:26px;}
+  .array-row{
+    display:grid;
+    grid-template-columns:repeat(10,1fr);
+    gap:var(--cell-gap);
+  }
+  .index-row{
+    display:grid;
+    grid-template-columns:repeat(10,1fr);
+    gap:var(--cell-gap);
+    margin-top:4px;
+  }
+  .index-cell{
+    text-align:center;
+    font-family:var(--font-mono);
+    font-size:.65rem;
+    color:var(--ink-muted);
+  }
+
+  .box{
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:clamp(40px,11vw,58px);
+    border:1.5px solid var(--panel-border);
+    border-radius:var(--radius-sm);
+    background:var(--bg);
+    font-family:var(--font-mono);
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+    font-size:clamp(.8rem,3.2vw,1.05rem);
+    color:var(--ink);
+    transition:background-color .35s ease,color .35s ease,border-color .35s ease,transform .35s ease,opacity .35s ease;
+  }
+  .box .box-mark{
+    position:absolute;
+    top:-7px;
+    right:-6px;
+    font-size:.65rem;
+    color:var(--ink-muted);
+    font-family:var(--font-sans);
+  }
+  .box.checked{opacity:.4;}
+  .box.current{border-color:var(--accent);transform:translateY(-3px);}
+  .box.mid{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);transform:translateY(-4px) scale(1.05);}
+  .box.found{background:var(--success);border-color:var(--success);color:var(--success-ink);transform:scale(1.1);}
+  .box.eliminated{background:var(--grey-100);border-color:var(--grey-200);color:var(--grey-400);opacity:.65;}
+
+  .arrow-pointer{
+    position:absolute;
+    top:2px;
+    left:0;
+    transform:translateX(-50%);
+    width:0;height:0;
+    border-left:6px solid transparent;
+    border-right:6px solid transparent;
+    border-top:9px solid var(--accent);
+    transition:left .4s cubic-bezier(.4,0,.2,1),opacity .25s ease;
+    opacity:0;
+  }
+  .pill{
+    position:absolute;
+    top:0;
+    transform:translateX(-50%);
+    background:var(--ink);
+    color:#fff;
+    font:700 .6rem/1 var(--font-sans);
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    padding:4px 7px;
+    border-radius:999px;
+    white-space:nowrap;
+    animation:pop-in .22s ease;
+  }
+  .pill.has-mid{background:var(--accent);}
+
+  @keyframes pop-in{from{opacity:0;transform:translateX(-50%) translateY(2px) scale(.85);}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}}
+
+  .info-panel{
+    margin-top:1rem;
+    background:var(--bg);
+    border:1px solid var(--panel-border);
+    border-radius:var(--radius-sm);
+    padding:.9rem 1rem;
+    font-size:.92rem;
+    line-height:1.55;
+  }
+  .info-panel p{margin:0;}
+  .info-panel p + p{margin-top:.5rem;}
+  .info-eyebrow{
+    font-size:.68rem;
+    font-weight:700;
+    letter-spacing:.07em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin-bottom:.4rem;
+  }
+  .info-panel code{
+    font-family:var(--font-mono);
+    background:var(--grey-100);
+    padding:1px 5px;
+    border-radius:4px;
+    font-size:.85em;
+  }
+
+  .summary{display:flex;flex-direction:column;gap:1rem;}
+  .stat-cards{display:flex;gap:1rem;flex-wrap:wrap;}
+  .stat-card{
+    flex:1;
+    min-width:130px;
+    text-align:center;
+    background:var(--bg);
+    border:1px solid var(--panel-border);
+    border-radius:var(--radius-sm);
+    padding:1rem;
+  }
+  .stat-card--win{border-color:var(--success);background:var(--success-soft);}
+  .stat-label{margin:0;font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);}
+  .stat-value{margin:.3rem 0 0;font-family:var(--font-mono);font-size:2.1rem;font-weight:700;font-variant-numeric:tabular-nums;}
+  .stat-card--win .stat-value{color:var(--success);}
+  .stat-unit{margin:0;font-size:.76rem;color:var(--ink-muted);}
+  .summary-note{margin:0;font-size:.9rem;line-height:1.6;color:var(--ink-muted);}
+  .summary-note strong{color:var(--ink);}
+
+  .progress{display:flex;flex-direction:column;gap:.4rem;}
+  .progress-track{height:6px;background:var(--grey-100);border-radius:999px;overflow:hidden;}
+  .progress-fill{height:100%;width:0%;background:var(--accent);border-radius:999px;transition:width .4s ease;}
+  .progress-label{margin:0;text-align:center;font-family:var(--font-mono);font-size:.76rem;color:var(--ink-muted);}
+
+  .controls{display:flex;gap:.75rem;}
+  .btn{
+    flex:1;
+    min-height:48px;
+    border-radius:var(--radius-sm);
+    font:700 .95rem var(--font-sans);
+    cursor:pointer;
+    transition:background-color .2s ease,opacity .2s ease,border-color .2s ease;
+  }
+  .btn-solid{background:var(--accent);border:none;color:var(--accent-ink);}
+  .btn-solid:hover:not(:disabled){background:var(--accent-strong);}
+  .btn-ghost{background:transparent;border:1.5px solid var(--panel-border);color:var(--ink);}
+  .btn-ghost:hover:not(:disabled){border-color:var(--ink-muted);}
+  .btn:disabled{opacity:.35;cursor:not-allowed;}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition-duration:.001ms !important;animation-duration:.001ms !important;}
+  }
+</style>
+
+<main class="page">
+  <header class="masthead">
+    <p class="eyebrow">Algorithms, visualized</p>
+    <h1>Binary Search, Step by Step</h1>
+    <p class="lede">The same list, the same target, two different ways of finding it. Watch how many comparisons each search actually needs.</p>
+    <p class="meta-line">10 sorted numbers &middot; searching for <strong>60</strong> &mdash; the last one, chosen on purpose</p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Search method">
+    <button type="button" class="tab" data-phase="linear" role="tab">Linear Search</button>
+    <button type="button" class="tab" data-phase="binary" role="tab">Binary Search</button>
+  </nav>
+
+  <section class="stage-card" aria-live="polite">
+    <div id="stageMain">
+      <div class="array-wrap">
+        <div class="indicator-row" id="indicatorRow"></div>
+        <div class="array-row" id="arrayRow"></div>
+        <div class="index-row" id="indexRow"></div>
+      </div>
+      <div class="info-panel" id="infoPanel"></div>
+    </div>
+
+    <div class="summary" id="summaryBlock" hidden>
+      <div class="stat-cards">
+        <div class="stat-card">
+          <p class="stat-label">Linear search</p>
+          <p class="stat-value" id="statLinear">10</p>
+          <p class="stat-unit">comparisons</p>
+        </div>
+        <div class="stat-card stat-card--win">
+          <p class="stat-label">Binary search</p>
+          <p class="stat-value" id="statBinary">4</p>
+          <p class="stat-unit">comparisons</p>
+        </div>
+      </div>
+      <p class="summary-note">Linear search checks one index at a time, so worst case it costs <strong>n</strong> comparisons &mdash; all 10, here. Binary search throws away half of what's left every round, so it costs about <strong>log&#8322; n</strong> comparisons &mdash; just 4. The gap widens fast: at 1,000,000 items, that's 1,000,000 vs. roughly 20.</p>
+    </div>
+  </section>
+
+  <div class="progress">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <p class="progress-label" id="progressLabel">Step 1 of 19</p>
+  </div>
+
+  <div class="controls">
+    <button type="button" class="btn btn-ghost" id="prevBtn">Back</button>
+    <button type="button" class="btn btn-solid" id="nextBtn">Next</button>
+  </div>
+</main>
+
+<script>
+(function(){
+  var array = [3, 8, 15, 22, 29, 34, 41, 47, 53, 60];
+  var target = array[array.length - 1];
+
+  var steps = [];
+  steps.push({ type: 'intro' });
+
+  for (var i = 0; i < array.length; i++) {
+    steps.push({ type: 'linear', idx: i, iteration: i + 1, match: array[i] === target });
+  }
+
+  var finalRound = 0;
+  (function buildBinarySteps(){
+    var lo = 0, hi = array.length - 1, round = 0, eliminated = [];
+    while (lo <= hi) {
+      round++;
+      var mid = Math.floor((lo + hi) / 2);
+      var val = array[mid];
+      if (val === target) {
+        steps.push({ type: 'binary-found', lo: lo, hi: hi, mid: mid, val: val, round: round, eliminated: eliminated.slice() });
+        finalRound = round;
+        break;
+      } else if (val < target) {
+        steps.push({ type: 'binary-compare', lo: lo, hi: hi, mid: mid, val: val, round: round, eliminated: eliminated.slice() });
+        var newLoR = mid + 1, newHiR = hi;
+        eliminated = eliminated.concat([[lo, mid]]);
+        steps.push({ type: 'binary-eliminate', lo: lo, hi: hi, mid: mid, val: val, round: round, newLo: newLoR, newHi: newHiR, eliminated: eliminated.slice() });
+        lo = newLoR; hi = newHiR;
+      } else {
+        steps.push({ type: 'binary-compare', lo: lo, hi: hi, mid: mid, val: val, round: round, eliminated: eliminated.slice() });
+        var newLoL = lo, newHiL = mid - 1;
+        eliminated = eliminated.concat([[mid, hi]]);
+        steps.push({ type: 'binary-eliminate', lo: lo, hi: hi, mid: mid, val: val, round: round, newLo: newLoL, newHi: newHiL, eliminated: eliminated.slice() });
+        lo = newLoL; hi = newHiL;
+      }
+    }
+  })();
+
+  steps.push({ type: 'summary', linearComparisons: array.length, binaryComparisons: finalRound });
+
+  var firstLinearIdx = -1, firstBinaryIdx = -1;
+  for (var s = 0; s < steps.length; s++) {
+    if (firstLinearIdx === -1 && steps[s].type === 'linear') firstLinearIdx = s;
+    if (firstBinaryIdx === -1 && steps[s].type.indexOf('binary') === 0) firstBinaryIdx = s;
+  }
+
+  var els = {
+    arrayRow: document.getElementById('arrayRow'),
+    indicatorRow: document.getElementById('indicatorRow'),
+    indexRow: document.getElementById('indexRow'),
+    infoPanel: document.getElementById('infoPanel'),
+    stageMain: document.getElementById('stageMain'),
+    summaryBlock: document.getElementById('summaryBlock'),
+    statLinear: document.getElementById('statLinear'),
+    statBinary: document.getElementById('statBinary'),
+    progressFill: document.getElementById('progressFill'),
+    progressLabel: document.getElementById('progressLabel'),
+    prevBtn: document.getElementById('prevBtn'),
+    nextBtn: document.getElementById('nextBtn'),
+    tabLinear: document.querySelector('[data-phase="linear"]'),
+    tabBinary: document.querySelector('[data-phase="binary"]')
+  };
+
+  var boxes = [];
+  var arrowEl = document.createElement('div');
+  arrowEl.className = 'arrow-pointer';
+  els.indicatorRow.appendChild(arrowEl);
+
+  array.forEach(function(val, idx){
+    var box = document.createElement('div');
+    box.className = 'box';
+    var valueSpan = document.createElement('span');
+    valueSpan.textContent = val;
+    var markSpan = document.createElement('span');
+    markSpan.className = 'box-mark';
+    box.appendChild(valueSpan);
+    box.appendChild(markSpan);
+    els.arrayRow.appendChild(box);
+    boxes.push(box);
+
+    var indexCell = document.createElement('div');
+    indexCell.className = 'index-cell';
+    indexCell.textContent = idx;
+    els.indexRow.appendChild(indexCell);
+  });
+
+  function isEliminated(idx, ranges) {
+    for (var r = 0; r < ranges.length; r++) {
+      if (idx >= ranges[r][0] && idx <= ranges[r][1]) return true;
+    }
+    return false;
+  }
+
+  function placeAtIndex(el, idx) {
+    var box = boxes[idx];
+    if (!box) { el.style.opacity = 0; return; }
+    var containerRect = els.arrayRow.getBoundingClientRect();
+    var boxRect = box.getBoundingClientRect();
+    var centerX = boxRect.left - containerRect.left + boxRect.width / 2;
+    el.style.left = centerX + 'px';
+  }
+
+  function clearPills() {
+    var pills = els.indicatorRow.querySelectorAll('.pill');
+    pills.forEach(function(p){ p.remove(); });
+  }
+
+  function addPill(idx, labels) {
+    var pill = document.createElement('div');
+    pill.className = 'pill' + (labels.indexOf('mid') !== -1 ? ' has-mid' : '');
+    pill.textContent = labels.join(' · ');
+    els.indicatorRow.appendChild(pill);
+    placeAtIndex(pill, idx);
+  }
+
+  function infoHTML(step) {
+    if (step.type === 'intro') {
+      return '<p>This list of 10 numbers is sorted, and we\'re hunting for <strong>60</strong> — the last number in the list. That\'s deliberate: it\'s the worst case for a left-to-right scan, since every earlier index has to be ruled out first.</p>';
+    }
+    if (step.type === 'linear') {
+      var val = array[step.idx];
+      if (step.match) {
+        return '<p class="info-eyebrow">Comparison ' + step.iteration + ' of 10</p><p><code>array[' + step.idx + ']</code> = <strong>' + val + '</strong>. Match! Linear search had to check <strong>every single element</strong> to get here.</p>';
+      }
+      return '<p class="info-eyebrow">Comparison ' + step.iteration + ' of 10</p><p><code>array[' + step.idx + ']</code> = <strong>' + val + '</strong>. Not a match — move to the next index.</p>';
+    }
+    if (step.type === 'binary-compare') {
+      var dirText = step.val < target ? '60 must be to the right' : '60 must be to the left';
+      var cmpText = step.val < target ? (step.val + ' &lt; 60') : (step.val + ' &gt; 60');
+      return '<p class="info-eyebrow">Round ' + step.round + ' — compare</p><p>low = ' + step.lo + ', high = ' + step.hi + ' → mid = ' + step.mid + '. <code>array[' + step.mid + ']</code> = <strong>' + step.val + '</strong>.</p><p>' + cmpText + ', so ' + dirText + '.</p>';
+    }
+    if (step.type === 'binary-eliminate') {
+      var droppedStart = step.val < target ? step.lo : step.mid;
+      var droppedEnd = step.val < target ? step.mid : step.hi;
+      return '<p class="info-eyebrow">Round ' + step.round + ' — narrow the range</p><p>Indices ' + droppedStart + '–' + droppedEnd + ' can\'t hold 60, so they\'re ruled out. The search continues only in indices ' + step.newLo + '–' + step.newHi + '.</p>';
+    }
+    if (step.type === 'binary-found') {
+      return '<p class="info-eyebrow">Round ' + step.round + ' — match</p><p>low = high = mid = ' + step.mid + '. <code>array[' + step.mid + ']</code> = <strong>60</strong>. Found it in just <strong>' + step.round + ' comparisons</strong>.</p>';
+    }
+    return '';
+  }
+
+  var current = 0;
+
+  function render(i) {
+    current = i;
+    var step = steps[i];
+
+    var phase = (step.type === 'summary' || step.type.indexOf('binary') === 0) ? 'binary' : 'linear';
+    els.tabLinear.classList.toggle('active', phase === 'linear');
+    els.tabBinary.classList.toggle('active', phase === 'binary');
+    els.tabLinear.setAttribute('aria-selected', phase === 'linear');
+    els.tabBinary.setAttribute('aria-selected', phase === 'binary');
+
+    els.progressFill.style.width = ((i / (steps.length - 1)) * 100) + '%';
+    els.progressLabel.textContent = 'Step ' + (i + 1) + ' of ' + steps.length;
+
+    els.prevBtn.disabled = i === 0;
+    els.nextBtn.textContent = i === steps.length - 1 ? 'Restart' : 'Next';
+
+    if (step.type === 'summary') {
+      els.stageMain.hidden = true;
+      els.summaryBlock.hidden = false;
+      els.statLinear.textContent = step.linearComparisons;
+      els.statBinary.textContent = step.binaryComparisons;
+      arrowEl.style.opacity = 0;
+      return;
+    }
+
+    els.stageMain.hidden = false;
+    els.summaryBlock.hidden = true;
+    clearPills();
+
+    var eliminatedRanges = step.eliminated || [];
+
+    boxes.forEach(function(box, idx){
+      box.className = 'box';
+      box.querySelector('.box-mark').textContent = '';
+
+      if (step.type === 'linear') {
+        arrowEl.style.opacity = 1;
+        if (idx < step.idx) {
+          box.classList.add('checked');
+          box.querySelector('.box-mark').textContent = '✕';
+        } else if (idx === step.idx) {
+          box.classList.add(step.match ? 'found' : 'current');
+        }
+      } else {
+        arrowEl.style.opacity = 0;
+        if (step.type === 'binary-found') {
+          if (idx === step.mid) box.classList.add('found');
+          else if (isEliminated(idx, eliminatedRanges)) box.classList.add('eliminated');
+        } else {
+          if (isEliminated(idx, eliminatedRanges)) box.classList.add('eliminated');
+          else if (idx === step.mid) box.classList.add('mid');
+        }
+      }
+    });
+
+    if (step.type === 'linear') {
+      placeAtIndex(arrowEl, step.idx);
+    } else {
+      var tagLo, tagMid, tagHi;
+      if (step.type === 'binary-eliminate') {
+        tagLo = step.newLo; tagHi = step.newHi; tagMid = null;
+      } else {
+        tagLo = step.lo; tagHi = step.hi; tagMid = step.mid;
+      }
+      array.forEach(function(val, idx){
+        var labels = [];
+        if (idx === tagLo) labels.push('low');
+        if (tagMid !== null && idx === tagMid) labels.push('mid');
+        if (idx === tagHi) labels.push('high');
+        if (labels.length) addPill(idx, labels);
+      });
+    }
+
+    els.infoPanel.innerHTML = infoHTML(step);
+  }
+
+  els.nextBtn.addEventListener('click', function(){
+    render(current === steps.length - 1 ? 0 : current + 1);
+  });
+  els.prevBtn.addEventListener('click', function(){
+    if (current > 0) render(current - 1);
+  });
+  els.tabLinear.addEventListener('click', function(){ render(firstLinearIdx); });
+  els.tabBinary.addEventListener('click', function(){ render(firstBinaryIdx); });
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight') els.nextBtn.click();
+    if (e.key === 'ArrowLeft') els.prevBtn.click();
+  });
+
+  var resizePending = false;
+  window.addEventListener('resize', function(){
+    if (resizePending) return;
+    resizePending = true;
+    requestAnimationFrame(function(){ resizePending = false; render(current); });
+  });
+
+  render(0);
+})();
+</script>
