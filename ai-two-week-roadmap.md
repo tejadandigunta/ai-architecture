@@ -1,4 +1,3 @@
-```markdown
 # 14-Day AI Engineering Roadmap
 
 A beginner-to-advanced plan for learning AI engineering in 14 days, with one curated video per topic.
@@ -24,4 +23,3 @@ A beginner-to-advanced plan for learning AI engineering in 14 days, with one cur
 
 - Follow the days in order, since each topic builds on the previous one.
 - Watch the video, then build something small with what you learned before moving on.
-```
